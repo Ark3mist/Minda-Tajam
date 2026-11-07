@@ -35,6 +35,8 @@
       name, age, avatar,
       coins: 0, lifetimeCoins: 0, xp: 0, rounds: 0, bestScore: 0, right: 0,
       badges: [], stickers: [], bestStars: {},
+      history: [], // one entry per finished round, for the parent progress charts
+
       relaxed: false, sound: true, readAloud: true
     };
   }
@@ -138,7 +140,7 @@
     document.body.appendChild(t);
     setTimeout(() => t.remove(), 2600);
   }
-  function leave() { stopTimer(); hush(); }
+  function leave() { stopTimer(); hush(); redraw = null; }
 
   /* ---------------- Start: who is playing? ---------------- */
   function start() {
@@ -252,7 +254,7 @@
   /* ---------------- Round ---------------- */
   let R = null;
   function startRound() {
-    R = { age: P.age, n: MATH.LEN[P.age], i: 0, score: 0, streak: 0, best: 0, right: 0, fast: 0, times: [], seen: {} };
+    R = { age: P.age, n: MATH.LEN[P.age], i: 0, score: 0, streak: 0, best: 0, right: 0, fast: 0, times: [], allTimes: [], seen: {} };
     showQuestion();
   }
 
@@ -336,7 +338,8 @@
      A wrong answer resets the streak, so fast guessing costs more than it earns. */
   function answer(ok, timedOut) {
     R.done = true; stopTimer();
-    const q = R.q, t = elapsed();
+    const q = R.q, t = timedOut ? q.limit : elapsed();
+    R.allTimes.push(t);
     let html;
     if (ok) {
       R.streak++; R.best = Math.max(R.best, R.streak); R.right++; R.times.push(t);
@@ -381,6 +384,14 @@
     P.coins += coins; P.lifetimeCoins += coins; P.xp += R.score; P.rounds++;
     const newBest = R.score > P.bestScore; if (newBest) P.bestScore = R.score;
     const newBadges = checkBadges(acc === 1, stars);
+    // Record the finished round for the parent's progress charts.
+    P.history.push({
+      t: Date.now(), age: R.age, n: R.n, right: R.right,
+      acc: Math.round(acc * 100),
+      sec: Math.round(10 * R.allTimes.reduce((a, b) => a + b, 0) / R.allTimes.length) / 10, // avg seconds per question
+      stars, score: R.score, relaxed: !!P.relaxed
+    });
+    if (P.history.length > 1000) P.history.splice(0, P.history.length - 1000);
     save();
     const levelUp = level() > before;
     const avg = R.times.length ? (R.times.reduce((a, b) => a + b, 0) / R.times.length).toFixed(1) : '–';
@@ -493,6 +504,7 @@
         <p>Right answers: ${P.right} · Rounds: ${P.rounds} · Best score: ${P.bestScore}</p>
         <p>Level ${level()} · Lifetime coins: ${P.lifetimeCoins}</p>
         <p>Best stars: ${starsRow}</p>
+        <button class="btn" id="charts">📈 Accuracy &amp; speed charts</button>
         <p class="muted">Progress is stored only on this device. Nothing is sent anywhere.</p>
       </div>
       <div class="row">
@@ -501,6 +513,7 @@
       </div>`;
     on('back', home);
     on('edit', () => profileForm(P));
+    on('charts', () => progressScreen());
     on('switch', whoIsPlaying);
     $('relaxed').onchange = (e) => { P.relaxed = e.target.checked; save(); };
     $('sound').onchange = (e) => { P.sound = e.target.checked; save(); };
@@ -510,6 +523,144 @@
       DB.profiles = DB.profiles.filter((p) => p !== P);
       useProfile(null); start();
     });
+  }
+
+  /* ---------------- Parent progress charts ----------------
+     Two separate charts (accuracy %, seconds per question): different units, so never one dual-axis chart.
+     Drawn as inline SVG so they work offline with no chart library. */
+  const view = { pid: null, age: null, range: 30 };
+  let redraw = null;
+  let resizeT = null;
+  window.addEventListener('resize', () => { clearTimeout(resizeT); resizeT = setTimeout(() => redraw && redraw(), 150); });
+
+  function fmtDate(t, withTime) {
+    const d = new Date(t);
+    return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) +
+      (withTime ? ', ' + d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) : '');
+  }
+  const mean = (rows, f) => rows.reduce((s, h) => s + h[f], 0) / rows.length;
+
+  // First rounds vs latest rounds in the current view.
+  function compareTiles(rows) {
+    if (rows.length < 2) return '<p class="muted">Play at least 2 rounds to compare.</p>';
+    const k = rows.length >= 10 ? 5 : Math.floor(rows.length / 2);
+    const a = rows.slice(0, k), b = rows.slice(-k);
+    const a1 = mean(a, 'acc'), a2 = mean(b, 'acc'), s1 = mean(a, 'sec'), s2 = mean(b, 'sec');
+    const dA = Math.round(a2 - a1), dS = Math.round((s2 - s1) * 10) / 10;
+    const accTxt = Math.abs(dA) < 3 ? 'About the same' : dA > 0 ? `▲ ${dA} points better` : `▼ ${-dA} points lower`;
+    const secTxt = Math.abs(dS) < 0.5 ? 'About the same' : dS < 0 ? `▲ ${-dS}s faster` : `▼ ${dS}s slower`;
+    const lbl = k === 1 ? ['First round', 'Latest round'] : [`First ${k} rounds`, `Latest ${k} rounds`];
+    return `<div class="tiles">
+      <div class="tile"><span class="tl">Accuracy</span><b>${Math.round(a2)}%</b>
+        <small>${lbl[0]}: ${Math.round(a1)}% → ${lbl[1].toLowerCase()}: ${Math.round(a2)}%</small><span class="delta">${accTxt}</span></div>
+      <div class="tile"><span class="tl">Time per question</span><b>${s2.toFixed(1)}s</b>
+        <small>${lbl[0]}: ${s1.toFixed(1)}s → ${lbl[1].toLowerCase()}: ${s2.toFixed(1)}s</small><span class="delta">${secTxt}</span></div>
+    </div>`;
+  }
+
+  function niceMax(v) {
+    const steps = [5, 10, 15, 20, 30, 40, 50, 60];
+    return steps.find((s) => s >= v) || Math.ceil(v / 10) * 10;
+  }
+
+  function drawChart(el, rows, o) {
+    const W = Math.max(260, el.clientWidth), H = 210, m = { l: 44, r: 48, t: 22, b: 30 };
+    const iw = W - m.l - m.r, ih = H - m.t - m.b, n = rows.length;
+    const yMax = o.yMax || niceMax(Math.max(...rows.map(o.get)) * 1.1);
+    const ticks = o.ticks || [0, yMax / 2, yMax];
+    const x = (i) => m.l + (n === 1 ? iw / 2 : iw * i / (n - 1));
+    const y = (v) => m.t + ih - ih * v / yMax;
+    let s = '';
+    ticks.forEach((t) => {
+      s += `<line class="grid" x1="${m.l}" x2="${W - m.r}" y1="${y(t)}" y2="${y(t)}"/>`;
+      s += `<text class="axis" x="${m.l - 8}" y="${y(t) + 4}" text-anchor="end">${o.fmt(t)}</text>`;
+    });
+    // Age changes: questions get harder, so mark where they happen.
+    rows.forEach((h, i) => {
+      if (i && h.age !== rows[i - 1].age) {
+        const xi = (x(i) + x(i - 1)) / 2;
+        s += `<line class="agemark" x1="${xi}" x2="${xi}" y1="${m.t}" y2="${m.t + ih}"/>`;
+        s += `<text class="axis" x="${xi + 4}" y="${m.t - 8}">Age ${h.age}</text>`;
+      }
+    });
+    const pts = rows.map((h, i) => [x(i), y(o.get(h))]);
+    if (n > 1) s += `<path class="line" d="M${pts.map((p) => p[0].toFixed(1) + ',' + p[1].toFixed(1)).join('L')}"/>`;
+    // Markers only while they don't crowd the line; the hover dot still shows every round.
+    if (n <= 15) pts.forEach((p) => { s += `<circle class="dot" cx="${p[0]}" cy="${p[1]}" r="4"/>`; });
+    else s += `<circle class="dot" cx="${pts[n - 1][0]}" cy="${pts[n - 1][1]}" r="4"/>`;
+    // Selective direct label: the latest value only.
+    const lp = pts[n - 1];
+    s += n === 1
+      ? `<text class="vlabel" x="${lp[0]}" y="${lp[1] - 10}" text-anchor="middle">${o.fmt(o.get(rows[0]))}</text>`
+      : `<text class="vlabel" x="${lp[0] + 8}" y="${lp[1] + 4}">${o.fmt(o.get(rows[n - 1]))}</text>`;
+    s += `<text class="axis" x="${x(0)}" y="${H - 8}" text-anchor="${n === 1 ? 'middle' : 'start'}">${fmtDate(rows[0].t)}</text>`;
+    if (n > 1) s += `<text class="axis" x="${x(n - 1)}" y="${H - 8}" text-anchor="end">${fmtDate(rows[n - 1].t)}</text>`;
+    s += `<line class="cross" id="${el.id}-x" y1="${m.t}" y2="${m.t + ih}" visibility="hidden"/>`;
+    s += `<circle class="dot hot" id="${el.id}-h" r="6" visibility="hidden"/>`;
+    el.innerHTML = `<svg width="${W}" height="${H}" role="img" aria-label="${esc(o.title)}: latest ${esc(o.fmt(o.get(rows[n - 1])))} over ${n} rounds">${s}
+      <rect x="${m.l - 10}" y="0" width="${iw + 20}" height="${H}" fill="transparent"/></svg><div class="tip" hidden></div>`;
+
+    const svg = el.querySelector('svg'), tip = el.querySelector('.tip');
+    const cross = $(el.id + '-x'), hot = $(el.id + '-h');
+    const show = (e) => {
+      const r = svg.getBoundingClientRect();
+      const i = n === 1 ? 0 : Math.max(0, Math.min(n - 1, Math.round((e.clientX - r.left - m.l) / iw * (n - 1))));
+      const h = rows[i], p = pts[i];
+      cross.setAttribute('x1', p[0]); cross.setAttribute('x2', p[0]); cross.setAttribute('visibility', 'visible');
+      hot.setAttribute('cx', p[0]); hot.setAttribute('cy', p[1]); hot.setAttribute('visibility', 'visible');
+      tip.innerHTML = `<b>${o.fmt(o.get(h))}</b> · round ${h.idx}<br>${fmtDate(h.t, true)}<br>Age ${h.age}: ${h.right}/${h.n} right (${h.acc}%)<br>${h.sec}s per question${h.relaxed ? ' · relaxed' : ''}`;
+      tip.hidden = false;
+      const tw = tip.offsetWidth;
+      tip.style.left = Math.max(0, Math.min(W - tw, p[0] - tw / 2)) + 'px';
+      tip.style.top = Math.max(0, p[1] - tip.offsetHeight - 14) + 'px';
+    };
+    const hide = () => { tip.hidden = true; cross.setAttribute('visibility', 'hidden'); hot.setAttribute('visibility', 'hidden'); };
+    svg.addEventListener('pointermove', show);
+    svg.addEventListener('pointerdown', show);
+    svg.addEventListener('pointerleave', hide);
+  }
+
+  function progressScreen() {
+    leave();
+    if (view.pid !== P.id) { view.pid = P.id; view.age = null; view.range = 30; }
+    const all = P.history.map((h, i) => Object.assign({ idx: i + 1 }, h));
+    const ages = [...new Set(all.map((h) => h.age))].sort((a, b) => a - b);
+    // Default to the player's current age: mixing ages mixes difficulty.
+    if (view.age !== 'all' && ages.indexOf(view.age) < 0) view.age = ages.indexOf(P.age) >= 0 ? P.age : (ages.length ? ages[ages.length - 1] : 'all');
+    let rows = all.filter((h) => view.age === 'all' || h.age === view.age);
+    if (view.range) rows = rows.slice(-view.range);
+
+    const chip = (attr, val, label, active) => `<button class="fchip ${active ? 'on' : ''}" data-${attr}="${val}" aria-pressed="${active}">${label}</button>`;
+    const filters = `<div class="filters">
+      ${ages.length > 1 ? chip('fage', 'all', 'All ages', view.age === 'all') : ''}
+      ${ages.map((a) => chip('fage', a, 'Age ' + a, view.age === a)).join('')}
+      <span class="fsep"></span>
+      ${[[10, 'Last 10'], [30, 'Last 30'], [0, 'All rounds']].map(([v, l]) => chip('frange', v, l, view.range === v)).join('')}
+    </div>`;
+    const table = `<details class="card"><summary>Show as table</summary><div class="tablewrap"><table>
+      <thead><tr><th>#</th><th>Date</th><th>Age</th><th>Right</th><th>Accuracy</th><th>Sec / question</th><th>Stars</th></tr></thead>
+      <tbody>${rows.slice().reverse().map((h) => `<tr><td>${h.idx}</td><td>${fmtDate(h.t, true)}</td><td>${h.age}</td><td>${h.right}/${h.n}</td><td>${h.acc}%</td><td>${h.sec}${h.relaxed ? ' (relaxed)' : ''}</td><td>${starsText(h.stars)}</td></tr>`).join('')}</tbody>
+    </table></div></details>`;
+
+    app.innerHTML = `
+      <div class="qhead"><button class="icon" id="back" aria-label="Back">⬅</button><span>📈 ${esc(P.name)}'s progress</span><span></span></div>
+      ${!all.length ? '<div class="card"><p>No finished rounds yet. Each finished round adds a point to the charts.</p></div>' : `
+        ${filters}
+        ${view.age === 'all' && ages.length > 1 ? '<p class="muted">Mixing ages: questions get harder at each new age, so a dip right after an age change is normal. Dashed lines mark the changes.</p>' : ''}
+        ${compareTiles(rows)}
+        <div class="card"><h3>Accuracy per round</h3><p class="muted">Share of questions answered right. Higher is better.</p><div class="chart" id="chA"></div></div>
+        <div class="card"><h3>Time per question</h3><p class="muted">Average seconds per question, including wrong answers and time-outs. Lower is faster.</p><div class="chart" id="chS"></div></div>
+        ${table}`}`;
+    on('back', settingsPanel);
+    app.querySelectorAll('[data-fage]').forEach((b) => b.onclick = () => { view.age = b.dataset.fage === 'all' ? 'all' : +b.dataset.fage; progressScreen(); });
+    app.querySelectorAll('[data-frange]').forEach((b) => b.onclick = () => { view.range = +b.dataset.frange; progressScreen(); });
+    if (!rows.length) return;
+    redraw = () => {
+      if (!$('chA')) { redraw = null; return; }
+      drawChart($('chA'), rows, { title: 'Accuracy per round', get: (h) => h.acc, yMax: 100, ticks: [0, 50, 100], fmt: (v) => Math.round(v) + '%' });
+      drawChart($('chS'), rows, { title: 'Time per question', get: (h) => h.sec, fmt: (v) => (Math.round(v * 10) / 10) + 's' });
+    };
+    redraw();
   }
 
   /* ---------------- Offline install ---------------- */

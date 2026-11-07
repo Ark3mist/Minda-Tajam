@@ -64,7 +64,32 @@ The panel sits behind a multiplication question so young players can't open it b
 - turn sound on or off
 - turn automatic read-aloud on or off (it applies to ages 4–6)
 - see progress: right answers, rounds, best score, best stars per age
+- open **📈 Accuracy & speed charts** (see below)
 - switch to another player or delete this one
+
+## Progress charts (for parents)
+
+Every **finished** round is recorded for the player. Quitting a round mid-way records nothing. Each record holds:
+
+- date and time
+- the age being played
+- right answers out of total, and accuracy %
+- average seconds per question
+- stars, score, and whether relaxed mode was on
+
+The record is capped at the latest 1,000 rounds per player.
+
+Open it from **Grown-ups → 📈 Accuracy & speed charts**:
+
+- **Comparison tiles:** the first rounds against the latest rounds, for accuracy and for speed. They use the first and last 5 rounds, or half and half when there are fewer than 10. Each tile says *better*, *faster*, *slower* or *about the same*.
+- **Accuracy per round:** % right; higher is better.
+- **Time per question:** average seconds, counting wrong answers and time-outs; lower is faster.
+- **Filters:** by age (the view starts on the player's current age, because each age has harder questions) and by range: last 10, last 30, or all rounds.
+- **Age changes:** dashed lines with labels mark them in the *All ages* view.
+- **Details:** hover or tap a point to see that round.
+- **Table:** *Show as table* lists every round in the current view.
+
+The charts are drawn as inline SVG, with no chart library and no network. Accuracy and time are deliberately two charts, not one chart with two axes.
 
 ## Files
 

@@ -2,10 +2,11 @@
   --bg: #f4f1ff; --card: #ffffff; --ink: #1d1a3a; --muted: #6b678a;
   --brand: #5b4bff; --brand2: #ff7a59; --good: #1fae6b; --bad: #e5484d;
   --math: #ffb020; --sci: #18b7c9; --lang: #a259ff; --mix: #ff5c8a;
+  --series: #5b4bff; --grid: rgba(29, 26, 58, .10); --axis: #6b678a;
   --radius: 18px; --shadow: 0 4px 0 rgba(29, 26, 58, .12);
 }
 @media (prefers-color-scheme: dark) {
-  :root { --bg: #15132b; --card: #23204a; --ink: #f2f0ff; --muted: #a9a5cc; --shadow: 0 4px 0 rgba(0, 0, 0, .35); }
+  :root { --bg: #15132b; --card: #23204a; --ink: #f2f0ff; --muted: #a9a5cc; --series: #8a7dff; --grid: rgba(255, 255, 255, .10); --axis: #a9a5cc; --shadow: 0 4px 0 rgba(0, 0, 0, .35); }
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; background: var(--bg); color: var(--ink); }
@@ -152,3 +153,32 @@ input:not([type]), input[inputmode] {
 .play b { display: block; font-size: 1.5rem; }
 .play small { display: block; opacity: .95; }
 @media (max-width: 360px) { .agepick { grid-template-columns: repeat(4, 1fr); } }
+
+/* ---------- Parent progress charts ---------- */
+.filters { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 12px 0; }
+.fsep { width: 8px; }
+.fchip { border: 2px solid var(--grid); background: var(--card); color: var(--ink); font: inherit; font-size: .85rem; font-weight: 700; border-radius: 999px; padding: 6px 12px; cursor: pointer; min-height: 36px; }
+.fchip.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.tile { background: var(--card); border-radius: var(--radius); padding: 14px; box-shadow: var(--shadow); }
+.tile .tl { display: block; color: var(--muted); font-size: .8rem; font-weight: 700; }
+.tile b { display: block; font-size: 2rem; line-height: 1.1; }
+.tile small { display: block; color: var(--muted); font-size: .75rem; margin-top: 4px; }
+.tile .delta { display: block; font-weight: 800; font-size: .85rem; margin-top: 6px; }
+.chart { position: relative; width: 100%; touch-action: pan-y; }
+.chart svg { display: block; overflow: visible; }
+.chart .grid { stroke: var(--grid); stroke-width: 1; }
+.chart .axis { fill: var(--axis); font-size: 11px; }
+.chart .agemark { stroke: var(--axis); stroke-width: 1; stroke-dasharray: 4 4; }
+.chart .line { fill: none; stroke: var(--series); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.chart .dot { fill: var(--series); stroke: var(--card); stroke-width: 2; }
+.chart .dot.hot { stroke-width: 3; }
+.chart .cross { stroke: var(--axis); stroke-width: 1; }
+.chart .vlabel { fill: var(--ink); font-size: 12px; font-weight: 800; }
+.tip { position: absolute; pointer-events: none; background: var(--ink); color: var(--bg); font-size: .78rem; line-height: 1.35; padding: 8px 10px; border-radius: 10px; white-space: nowrap; z-index: 5; }
+details summary { cursor: pointer; font-weight: 800; }
+.tablewrap { overflow-x: auto; margin-top: 10px; }
+table { border-collapse: collapse; width: 100%; font-size: .85rem; }
+th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--grid); white-space: nowrap; }
+th { color: var(--muted); font-weight: 700; }
+@media (max-width: 360px) { .tiles { grid-template-columns: 1fr; } }
