@@ -6,6 +6,8 @@ No internet, accounts, ads or tracking. Everything is saved only on the device, 
 
 ## Play
 
+**Live:** https://ark3mist.github.io/Minda-Tajam/
+
 - **Quickest:** open `index.html` in any browser. Everything runs from local files.
 - **Install as an app (phone or tablet):** host the folder once on any HTTPS server (GitHub Pages works) or on `localhost`, open it, then choose *Add to Home Screen* or *Install*. A service worker (`sw.js`) caches every file, so after the first visit the app works with no connection.
 
@@ -94,4 +96,8 @@ These fields are optional:
 
 Time limits and round lengths per age are in `LIMIT` and `LEN`.
 
-When you change files, bump `CACHE` in `sw.js` so installed copies update.
+## Publishing (GitHub Pages)
+
+The live page is served by GitHub Pages straight from the `main` branch, with no build step. To set it up once: go to **Settings → Pages**, under **Build and deployment** set **Source** to *Deploy from a branch*, choose **Branch** `main` and folder `/ (root)`, then press **Save**. Every push to `main` then updates the live page within a minute or two. The empty `.nojekyll` file tells Pages to serve the files as they are, without running Jekyll.
+
+When you change files, bump `CACHE` in `sw.js`. Otherwise phones that installed the app keep showing the old version.
