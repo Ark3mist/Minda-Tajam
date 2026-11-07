@@ -1,7 +1,7 @@
 {
   "name": "Brain Bots",
   "short_name": "Brain Bots",
-  "description": "Offline math, science and word quiz for kids with coins, stickers and badges.",
+  "description": "Offline math practice for kids aged 4–10 with coins, stickers and badges.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

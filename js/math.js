@@ -3,7 +3,16 @@
    round when the child is on a streak, so difficulty adapts inside an age. */
 (function () {
   'use strict';
-  const { rnd, pick, shuffle } = window.QB;
+  function rnd(a, b) { return Math.floor(Math.random() * (b - a + 1)) + a; }
+  function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+  function shuffle(arr) {
+    const a = arr.slice();
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
 
   const AGES = {
     4: { title: 'Counting to 5', topics: 'Count pictures, more or less, what comes next' },
@@ -207,5 +216,5 @@
     return { subject: 'math', kind: 'mcq', prompt: r.prompt, visual: r.visual, bigOpts: r.bigOpts, answer, options, fact: r.fact, limit: LIMIT[age], age };
   }
 
-  window.MATH = { AGES, LIMIT, LEN, make };
+  window.MATH = { AGES, LIMIT, LEN, make, pick, shuffle };
 })();
