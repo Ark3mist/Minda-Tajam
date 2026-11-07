@@ -1,0 +1,14 @@
+{
+  "name": "Brain Bots",
+  "short_name": "Brain Bots",
+  "description": "Offline math, science and word quiz for kids with coins, stickers and badges.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f4f1ff",
+  "theme_color": "#5b4bff",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
