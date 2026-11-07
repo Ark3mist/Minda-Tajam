@@ -58,8 +58,15 @@ input:not([type]), input[inputmode] {
 
 .question { border-left: 8px solid var(--math); }
 
-.options { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.opt, .opt.right { border-color: var(--good); background: color-mix(in srgb, var(--good) 22%, var(--card)); }
+.options { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+/* Big answer buttons: easy to read and easy for small fingers to hit. */
+.opt {
+  border: 4px solid transparent; border-radius: 22px; background: var(--card); color: var(--ink);
+  font: inherit; font-weight: 800; font-size: 2.4rem; line-height: 1.1; letter-spacing: .5px;
+  padding: 18px 8px; min-height: 120px; cursor: pointer; box-shadow: var(--shadow);
+  overflow-wrap: anywhere; font-variant-numeric: tabular-nums;
+}
+.opt.right { border-color: var(--good); background: color-mix(in srgb, var(--good) 22%, var(--card)); }
 .opt.wrong { border-color: var(--bad); background: color-mix(in srgb, var(--bad) 22%, var(--card)); animation: shake .3s; }
 .opt:disabled { cursor: default; color: var(--ink); }
 @keyframes shake { 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
@@ -106,7 +113,7 @@ input:not([type]), input[inputmode] {
   padding: 12px 18px; border-radius: 999px; z-index: 60; animation: pop .25s;
 }
 
-@media (max-width: 380px) { .shop { grid-template-columns: repeat(2, 1fr); } .options { grid-template-columns: 1fr; } }
+@media (max-width: 380px) { .shop { grid-template-columns: repeat(2, 1fr); } .opt { font-size: 2rem; min-height: 104px; } }
 @media (prefers-reduced-motion: reduce) { *, .confetti { animation: none !important; transition: none !important; } .confetti { display: none; } }
 
 /* ---------- Picture questions + read aloud ---------- */
@@ -118,9 +125,9 @@ input:not([type]), input[inputmode] {
 .vop { font-weight: 800; color: var(--muted); }
 .grp .x { position: relative; opacity: .35; }
 .grp .x::after { content: ''; position: absolute; left: -2px; right: -2px; top: 50%; border-top: 4px solid var(--bad); transform: rotate(-35deg); }
-.options.big .opt { font-size: 1.7rem; letter-spacing: 2px; min-height: 96px; }
+.options.big .opt { font-size: 1.9rem; letter-spacing: 2px; min-height: 130px; }
 .options.three { grid-template-columns: repeat(3, 1fr); }
-.options.three .opt { font-size: 1.8rem; }
+.options.three .opt { font-size: 2.8rem; min-height: 130px; }
 
 /* ---------- Profiles ---------- */
 .profiles { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-top: 12px; }
