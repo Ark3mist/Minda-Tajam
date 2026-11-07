@@ -19,12 +19,32 @@ Then open http://localhost:8000.
 
 | Mode | Content |
 |---|---|
-| ➗ Math | Unlimited generated questions: + − × ÷, missing numbers, fractions of a number, word problems. Difficulty grows with player level, and steps up during a round while the player is on a streak. |
+| ➗ Math | Ages 4–10, chosen by the player each time (see below). Unlimited generated questions. |
 | 🔬 Science | 30 multiple-choice questions with an explanation after each answer, plus 11 tap-to-place engineering puzzles (conductors, magnets, buoyancy, levers, pulleys, insulation, structures, light, sound, gears). |
 | 📚 Words | 32 questions on spelling, synonyms, antonyms, plurals, past tense, parts of speech, punctuation, homophones and contractions. |
 | 🎲 Mix | A round with all three subjects. |
 
-Each round has 10 questions.
+Each round has 10 questions (math: 6 at age 4, 8 at age 5).
+
+## Math by age
+
+Tapping **Math** opens an age picker. The player chooses any age from 4 to 10; the last choice is highlighted and each age shows the best stars earned there.
+
+| Age | Question types | Time per question |
+|---|---|---|
+| 4 | Count pictures (1–5), which group has more, what comes next, find the number said aloud | 45 s |
+| 5 | Count to 10 (rows of 5), add and take away with pictures, number before/after, which group has fewer | 40 s |
+| 6 | Add/subtract within 20, make 10 / make 20, skip counting by 2, 5, 10, biggest/smallest, doubles | 30 s |
+| 7 | 2-digit add/subtract, 2/5/10 times tables, halves, tens in a number, odd/even, word problems | 25 s |
+| 8 | 3-digit add/subtract, tables 2–5, 8, 10, division, 1/2, 1/4, 3/4 of a number, ±10/100, missing numbers | 20 s |
+| 9 | Tables to 12, division, 4-digit add/subtract, rounding to 10/100, fractions of amounts, × ÷ word problems | 20 s |
+| 10 | 2-digit × 1- and 2-digit, 3-digit ÷ 1-digit, decimals, percentages, order of operations, equivalent fractions, square numbers | 25 s |
+
+- **Adapts inside an age:** after 3 right answers in a row the harder variant of each question type is used (for example, at age 6 sums cross 10, at age 9 rounding goes to the nearest 100). One wrong answer drops back to the normal variant.
+- **Wrong answers are believable:** the choices sit next to the right answer (±1, ±10, …). At age 10 the order-of-operations questions always include the answer you get by working left to right.
+- **Young players:** ages 4–5 show pictures, and ages 4–6 read the question and the explanation aloud with the device's built-in voice. Age 4 gets 3 answer choices instead of 4. The 🔊 button reads any math question on demand. Read-aloud uses the device's own voices, which most phones and tablets have offline.
+- **Moving up:** the first 3-star round at an age pays a one-off 100-coin bonus and offers "Try Age N+1". A round with 0–1 stars offers the age below.
+- **Mix mode** uses the last chosen math age, but never below 8, because its science and word questions are written for ages 8–10.
 
 ## Rewards
 
@@ -51,7 +71,8 @@ The panel sits behind a multiplication question so young players can't open it b
 ```
 index.html            app shell
 css/style.css         styles (light and dark mode, phone-first)
-js/questions.js       question banks, math generator, engineering puzzles
+js/questions.js       science and word question banks, engineering puzzles
+js/math.js            math generators for ages 4–10
 js/app.js             game logic, scoring, rewards, storage
 sw.js                 offline cache
 manifest.webmanifest  install metadata

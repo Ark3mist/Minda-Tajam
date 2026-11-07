@@ -1,6 +1,6 @@
 /* Caches every app file on first visit so the game runs with no internet afterwards. */
-const CACHE = 'brainbots-v1';
-const FILES = ['./', 'index.html', 'css/style.css', 'js/questions.js', 'js/app.js', 'manifest.webmanifest', 'icon.svg'];
+const CACHE = 'brainbots-v2';
+const FILES = ['./', 'index.html', 'css/style.css', 'js/questions.js', 'js/math.js', 'js/app.js', 'manifest.webmanifest', 'icon.svg'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(FILES)).then(() => self.skipWaiting()));

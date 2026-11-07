@@ -1,7 +1,8 @@
 /* Brain Bots: offline quiz game with rewards. No network, no tracking. */
 (function () {
   'use strict';
-  const { pick, shuffle, makeMath, science, language, puzzles, ITEM_EMOJI } = window.QB;
+  const { pick, shuffle, science, language, puzzles, ITEM_EMOJI } = window.QB;
+  const MATH = window.MATH;
 
   /* ---------------- Persistent progress (localStorage, this device only) ---------------- */
   const KEY = 'brainbots_v1';
@@ -9,7 +10,8 @@
     name: '', coins: 0, lifetimeCoins: 0, xp: 0, rounds: 0, bestScore: 0,
     correct: { math: 0, science: 0, language: 0 },
     modes: {}, puzzlesSolved: [], badges: [], stickers: [], avatar: '🤖',
-    relaxed: false, sound: true
+    relaxed: false, sound: true, readAloud: true,
+    mathAge: null, mathStars: {}
   };
   function fresh() { return JSON.parse(JSON.stringify(DEFAULT)); }
   function load() {
@@ -103,7 +105,7 @@
   }
 
   function home() {
-    stopTimer();
+    stopTimer(); hush();
     if (!P.name) return askName();
     app.innerHTML = `
       <header class="hero">
@@ -113,7 +115,7 @@
       </header>
       ${statsBar()}
       <div class="modes">
-        <button class="mode m-math" data-mode="math"><span>➗</span>Math</button>
+        <button class="mode m-math" data-mode="math"><span>➗</span>Math<small>ages 4–10</small></button>
         <button class="mode m-sci" data-mode="science"><span>🔬</span>Science</button>
         <button class="mode m-lang" data-mode="language"><span>📚</span>Words</button>
         <button class="mode m-mix" data-mode="mix"><span>🎲</span>Mix</button>
@@ -124,7 +126,7 @@
         <button class="btn alt" id="settings">⚙️ Grown-ups</button>
       </div>
       <p class="muted center">Best score: ${P.bestScore} · Rounds played: ${P.rounds}</p>`;
-    app.querySelectorAll('[data-mode]').forEach((b) => b.onclick = () => { sfx.tap(); startRound(b.dataset.mode); });
+    app.querySelectorAll('[data-mode]').forEach((b) => b.onclick = () => { sfx.tap(); b.dataset.mode === 'math' ? agePicker() : startRound(b.dataset.mode); });
     document.getElementById('shop').onclick = shop;
     document.getElementById('badges').onclick = badges;
     document.getElementById('settings').onclick = settings;
@@ -162,13 +164,13 @@
       fact: 'Skill: ' + p.target_skill + '.', limit: 30
     };
   }
-  function buildRound(mode) {
+  function buildRound(mode, age) {
     const sci = shuffle(science), lang = shuffle(language);
     // Prefer puzzles not solved yet so the Engineer badge is reachable.
     const unsolved = puzzles.filter((p) => P.puzzlesSolved.indexOf(p.id) < 0);
     const puz = shuffle(unsolved).concat(shuffle(puzzles.filter((p) => unsolved.indexOf(p) < 0)));
     let list = [];
-    if (mode === 'math') for (let i = 0; i < ROUND_LEN; i++) list.push({ gen: 'math' });
+    if (mode === 'math') for (let i = 0; i < MATH.LEN[age]; i++) list.push({ gen: 'math' });
     if (mode === 'science') list = sci.slice(0, 7).map((q) => mcq(q, 'science')).concat(puz.slice(0, 3).map(puzzle));
     if (mode === 'language') list = lang.slice(0, ROUND_LEN).map((q) => mcq(q, 'language'));
     if (mode === 'mix') {
@@ -178,16 +180,77 @@
     return shuffle(list);
   }
 
-  function startRound(mode) {
-    R = { mode, list: buildRound(mode), i: 0, score: 0, streak: 0, best: 0, right: 0, fast: 0, times: [], startCoins: P.coins };
+  function startRound(mode, age) {
+    // Mix mode's science and word questions are written for ages 8-10, so its math defaults to 8.
+    age = age || (mode === 'mix' ? Math.max(8, P.mathAge || 8) : P.mathAge || 8);
+    R = { mode, age, list: buildRound(mode, age), i: 0, score: 0, streak: 0, best: 0, right: 0, fast: 0, times: [], seen: {}, startCoins: P.coins };
     P.modes[mode] = true; save();
     showQuestion();
   }
 
-  function mathTier() {
-    // Grows with player level, and steps up inside a round when the child is on a streak.
-    const base = Math.min(2, Math.floor((level() - 1) / 3));
-    return Math.min(2, base + (R.streak >= 3 ? 1 : 0));
+  // Next math question for this age; switches to the harder variants while the child is on a 3+ streak.
+  function nextMath() {
+    let q;
+    for (let tries = 0; tries < 8; tries++) {
+      q = MATH.make(R.age, R.streak >= 3);
+      if (!R.seen[q.prompt + '|' + q.answer]) break;
+    }
+    R.seen[q.prompt + '|' + q.answer] = true;
+    return q;
+  }
+
+  /* ---------------- Age picker (math) ---------------- */
+  function agePicker() {
+    stopTimer(); hush();
+    const tiles = Object.keys(MATH.AGES).map((a) => {
+      const info = MATH.AGES[a], st = P.mathStars[a] || 0;
+      return `<button class="agetile ${+a === P.mathAge ? 'active' : ''}" data-age="${a}">
+        <b>${a}</b><span class="agetxt"><strong>Age ${a}: ${info.title}</strong><small>${info.topics}</small></span>
+        <span class="agestars" aria-label="best ${st} stars">${'⭐'.repeat(st)}${'☆'.repeat(3 - st)}</span></button>`;
+    }).join('');
+    app.innerHTML = `
+      <div class="qhead"><button class="icon" id="back" aria-label="Back">⬅</button><span>➗ Math: pick your age</span><span></span></div>
+      <p class="muted center">Get 3 stars to unlock a bonus for the next age up. You can pick any age.</p>
+      <div class="ages">${tiles}</div>`;
+    document.getElementById('back').onclick = home;
+    app.querySelectorAll('[data-age]').forEach((b) => b.onclick = () => {
+      sfx.tap(); P.mathAge = +b.dataset.age; save(); startRound('math', P.mathAge);
+    });
+  }
+
+  /* ---------------- Read aloud (device voices, works offline on most devices) ---------------- */
+  const canSpeak = 'speechSynthesis' in window && 'SpeechSynthesisUtterance' in window;
+  function spoken(s) {
+    return String(s)
+      .replace(/(\d+)\/(\d+)/g, '$1 over $2')
+      .replace(/−/g, ' minus ').replace(/×/g, ' times ').replace(/÷/g, ' divided by ')
+      .replace(/\+/g, ' plus ').replace(/=/g, ' equals ').replace(/²/g, ' squared').replace(/%/g, ' percent')
+      .replace(/(^|[\s,])\?(?=[\s,.]|$)/g, '$1 what');
+  }
+  function speak(s) {
+    if (!canSpeak || !P.readAloud) return;
+    try {
+      speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(spoken(s));
+      u.rate = 0.9; u.lang = 'en';
+      speechSynthesis.speak(u);
+    } catch (e) { /* no voice installed */ }
+  }
+  function hush() { try { if (canSpeak) speechSynthesis.cancel(); } catch (e) { /* ignore */ } }
+  // Auto-read only for young math players, who may not read yet.
+  const autoRead = (q) => q.subject === 'math' && R.age <= 6;
+
+  function renderVisual(v) {
+    if (!v) return '';
+    return '<div class="visual" aria-hidden="true">' + v.map((t) => {
+      if (typeof t === 'string') return `<span class="vop">${esc(t)}</span>`;
+      let html = '';
+      for (let i = 0; i < t.n; i++) {
+        html += `<span class="${t.cross && i >= t.n - t.cross ? 'x' : ''}">${t.e}</span>`;
+        if ((i + 1) % 5 === 0 && i + 1 < t.n) html += '<br>'; // rows of 5 help children see amounts
+      }
+      return `<span class="grp">${html}</span>`;
+    }).join('') + '</div>';
   }
 
   /* ---------------- Timer ---------------- */
@@ -211,7 +274,7 @@
   /* ---------------- Question screen ---------------- */
   function showQuestion() {
     let q = R.list[R.i];
-    if (q.gen === 'math') q = R.list[R.i] = makeMath(mathTier());
+    if (q.gen === 'math') q = R.list[R.i] = nextMath();
     R.q = q; R.done = false;
     const label = { math: '➗ Math', science: q.kind === 'puzzle' ? '🛠️ Engineering' : '🔬 Science', language: '📚 Words' }[q.subject];
     const head = `
@@ -225,8 +288,10 @@
 
     if (q.kind === 'mcq') {
       app.innerHTML = head + `
-        <div class="card question ${q.subject}"><h2>${esc(q.prompt)}</h2></div>
-        <div class="options">${q.options.map((o) => `<button class="opt" data-v="${esc(o)}">${esc(o)}</button>`).join('')}</div>
+        <div class="card question ${q.subject}">
+          ${canSpeak ? '<button class="icon say" id="say" aria-label="Read the question aloud">🔊</button>' : ''}
+          <h2>${esc(q.prompt)}</h2>${renderVisual(q.visual)}</div>
+        <div class="options ${q.bigOpts ? 'big' : ''} ${q.options.length === 3 ? 'three' : ''}">${q.options.map((o) => `<button class="opt" data-v="${esc(o)}">${esc(o)}</button>`).join('')}</div>
         <div id="fb"></div>`;
       app.querySelectorAll('.opt').forEach((b) => b.onclick = () => {
         if (R.done) return;
@@ -270,7 +335,10 @@
         chk.disabled = true; reveal(); answer(ok, false);
       };
     }
-    document.getElementById('quit').onclick = () => { if (confirm('Quit this round? Coins from this round will be lost.')) { P.coins = R.startCoins; save(); home(); } };
+    document.getElementById('quit').onclick = () => { if (confirm('Quit this round? Coins from this round will be lost.')) { hush(); home(); } };
+    const sayBtn = document.getElementById('say');
+    if (sayBtn) sayBtn.onclick = () => { const was = P.readAloud; P.readAloud = true; speak(q.prompt); P.readAloud = was; };
+    if (autoRead(q)) speak(q.prompt);
     startTimer(q.limit, () => {
       if (R.done) return;
       app.querySelectorAll('.opt, .item').forEach((x) => {
@@ -320,8 +388,9 @@
     }
     const last = R.i === R.list.length - 1;
     document.getElementById('fb').innerHTML = html + `<button class="btn" id="next">${last ? 'See results 🏁' : 'Next ➜'}</button>`;
+    if (autoRead(q)) speak((ok ? 'Correct! ' : 'The answer is ' + q.answer + '. ') + q.fact);
     const nx = document.getElementById('next');
-    nx.onclick = () => { R.i++; last ? results() : showQuestion(); };
+    nx.onclick = () => { hush(); R.i++; last ? results() : showQuestion(); };
     nx.focus();
     nx.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
@@ -332,7 +401,12 @@
     const n = R.list.length, acc = R.right / n;
     const stars = acc === 1 ? 3 : acc >= 0.7 ? 2 : acc >= 0.4 ? 1 : 0;
     const starBonus = [0, 10, 25, 50][stars];
-    const coins = Math.floor(R.score / 10) + starBonus;
+    // First time an age is cleared with 3 stars: one-off bonus, and the next age is suggested.
+    const isMath = R.mode === 'math';
+    const prevStars = isMath ? (P.mathStars[R.age] || 0) : 0;
+    const ageBonus = isMath && stars === 3 && prevStars < 3 ? 100 : 0;
+    if (isMath && stars > prevStars) P.mathStars[R.age] = stars;
+    const coins = Math.floor(R.score / 10) + starBonus + ageBonus;
     const before = level();
     P.coins += coins; P.lifetimeCoins += coins; P.xp += R.score; P.rounds++;
     const newBest = R.score > P.bestScore; if (newBest) P.bestScore = R.score;
@@ -350,15 +424,24 @@
         <div><b>${R.best}</b><span>best streak</span></div>
         <div><b>${avg}s</b><span>avg right answer</span></div>
       </div>
-      <div class="card reward">🪙 +${coins} coins <small>(${Math.floor(R.score / 10)} from points + ${starBonus} star bonus)</small></div>
+      <div class="card reward">🪙 +${coins} coins <small>(${Math.floor(R.score / 10)} from points + ${starBonus} star bonus${ageBonus ? ` + ${ageBonus} Age ${R.age} cleared bonus` : ''})</small></div>
+      ${ageBonus ? `<div class="card reward lvl">🎂 Age ${R.age} math cleared with 3 stars!</div>` : ''}
       ${levelUp ? `<div class="card reward lvl">⬆️ Level up! You are now level ${level()}</div>` : ''}
       ${newBadges.map((b) => `<div class="card reward badge">${b.e} New badge: <b>${b.name}</b></div>`).join('')}
       <div class="row">
-        <button class="btn" id="again">Play again 🔁</button>
+        ${isMath && stars === 3 && R.age < 10 ? `<button class="btn" id="up">Try Age ${R.age + 1} ⬆️</button>` : ''}
+        <button class="btn ${isMath && stars === 3 && R.age < 10 ? 'alt' : ''}" id="again">Play again 🔁</button>
+        ${isMath && stars <= 1 && R.age > 4 ? `<button class="btn alt" id="down">Try Age ${R.age - 1}</button>` : ''}
+        ${isMath ? '<button class="btn alt" id="ages">Pick age</button>' : ''}
         <button class="btn alt" id="home">Home 🏠</button>
       </div>`;
-    document.getElementById('again').onclick = () => startRound(R.mode);
-    document.getElementById('home').onclick = home;
+    const age = R.age, mode = R.mode;
+    const on = (id, fn) => { const el = document.getElementById(id); if (el) el.onclick = fn; };
+    on('again', () => startRound(mode, age));
+    on('up', () => { P.mathAge = age + 1; save(); startRound('math', age + 1); });
+    on('down', () => { P.mathAge = age - 1; save(); startRound('math', age - 1); });
+    on('ages', agePicker);
+    on('home', home);
   }
 
   function checkBadges(perfect) {
@@ -436,6 +519,7 @@
       <div class="card">
         <label class="toggle"><input type="checkbox" id="relaxed" ${P.relaxed ? 'checked' : ''}> Relaxed mode (no timer, flat +25 bonus instead of speed bonus)</label>
         <label class="toggle"><input type="checkbox" id="sound" ${P.sound ? 'checked' : ''}> Sound effects</label>
+        ${canSpeak ? `<label class="toggle"><input type="checkbox" id="readAloud" ${P.readAloud ? 'checked' : ''}> Read math questions aloud automatically for ages 4–6 (the 🔊 button always works)</label>` : ''}
       </div>
       <div class="card">
         <h3>Progress</h3>
@@ -451,6 +535,8 @@
     document.getElementById('back').onclick = home;
     document.getElementById('relaxed').onchange = (e) => { P.relaxed = e.target.checked; save(); };
     document.getElementById('sound').onchange = (e) => { P.sound = e.target.checked; save(); };
+    const ra = document.getElementById('readAloud');
+    if (ra) ra.onchange = (e) => { P.readAloud = e.target.checked; save(); };
     document.getElementById('saveName').onclick = () => { P.name = document.getElementById('rn').value.trim().slice(0, 16) || P.name; save(); toast('Saved'); };
     document.getElementById('reset').onclick = () => {
       if (confirm('Erase all coins, stickers, badges and progress?')) { P = fresh(); save(); home(); }

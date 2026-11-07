@@ -124,3 +124,33 @@ input:not([type]), input[inputmode] {
 
 @media (max-width: 380px) { .items, .shop { grid-template-columns: repeat(2, 1fr); } .options { grid-template-columns: 1fr; } }
 @media (prefers-reduced-motion: reduce) { *, .confetti { animation: none !important; transition: none !important; } .confetti { display: none; } }
+
+/* ---------- Math: age picker ---------- */
+.mode small { font-size: .75rem; font-weight: 600; opacity: .9; }
+.ages { display: grid; gap: 10px; margin-top: 8px; }
+.agetile {
+  display: flex; align-items: center; gap: 12px; text-align: left; border: 3px solid transparent; border-radius: var(--radius);
+  background: var(--card); color: var(--ink); font: inherit; padding: 10px 12px; cursor: pointer; box-shadow: var(--shadow);
+}
+.agetile.active { border-color: var(--math); }
+.agetile b {
+  flex: none; width: 52px; height: 52px; border-radius: 50%; background: var(--math); color: #fff;
+  display: grid; place-items: center; font-size: 1.5rem;
+}
+.agetxt { flex: 1; min-width: 0; }
+.agetxt strong { display: block; }
+.agetxt small { display: block; color: var(--muted); font-size: .8rem; }
+.agestars { flex: none; font-size: .9rem; letter-spacing: 1px; }
+
+/* ---------- Picture questions + read aloud ---------- */
+.question { position: relative; }
+.question .say { position: absolute; top: 10px; right: 10px; width: 40px; height: 40px; }
+.question h2 { padding-right: 44px; }
+.visual { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 10px; margin-top: 12px; font-size: 2.2rem; line-height: 1.2; }
+.grp { background: var(--bg); border-radius: 14px; padding: 6px 10px; text-align: center; }
+.vop { font-weight: 800; color: var(--muted); }
+.grp .x { position: relative; opacity: .35; }
+.grp .x::after { content: ''; position: absolute; left: -2px; right: -2px; top: 50%; border-top: 4px solid var(--bad); transform: rotate(-35deg); }
+.options.big .opt { font-size: 1.7rem; letter-spacing: 2px; min-height: 96px; }
+.options.three { grid-template-columns: repeat(3, 1fr); }
+.options.three .opt { font-size: 1.8rem; }

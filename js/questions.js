@@ -13,85 +13,6 @@
     return a;
   }
 
-  /* ---------------- MATH (generated, 3 difficulty tiers) ---------------- */
-  function numberOptions(answer) {
-    const set = new Set([answer]);
-    const offsets = [1, 2, 10, -1, -2, -10, 5, -5, 3, -3];
-    while (set.size < 4) {
-      const o = answer + pick(offsets) * (Math.random() < 0.25 ? 2 : 1);
-      if (o >= 0) set.add(o);
-    }
-    return shuffle([...set]).map(String);
-  }
-
-  function makeMath(tier) {
-    tier = Math.max(0, Math.min(2, tier | 0));
-    const types = [
-      ['add', 'sub', 'mul', 'word'],
-      ['add', 'sub', 'mul', 'div', 'missing', 'word'],
-      ['add', 'sub', 'mul', 'div', 'missing', 'word', 'frac']
-    ][tier];
-    const t = pick(types);
-    let prompt, answer, fact;
-
-    switch (t) {
-      case 'add': {
-        const max = [50, 500, 999][tier];
-        const x = rnd(10, max), y = rnd(10, max);
-        prompt = `${x} + ${y} = ?`; answer = x + y;
-        fact = `${x} + ${y} = ${answer}. Tip: add the tens first, then the ones.`;
-        break;
-      }
-      case 'sub': {
-        const max = [100, 1000, 1000][tier];
-        const x = rnd(20, max), y = rnd(5, x - 1);
-        prompt = `${x} − ${y} = ?`; answer = x - y;
-        fact = `${x} − ${y} = ${answer}. Check it: ${answer} + ${y} = ${x}.`;
-        break;
-      }
-      case 'mul': {
-        const pools = [[2, 3, 4, 5, 10], [2, 3, 4, 5, 6, 7, 8, 9, 10], [3, 4, 6, 7, 8, 9, 11, 12]];
-        const x = pick(pools[tier]), y = rnd(2, tier === 2 ? 12 : 10);
-        prompt = `${x} × ${y} = ?`; answer = x * y;
-        fact = `${x} groups of ${y} make ${answer}.`;
-        break;
-      }
-      case 'div': {
-        const x = rnd(2, tier === 2 ? 12 : 10), q = rnd(2, 10);
-        prompt = `${x * q} ÷ ${x} = ?`; answer = q;
-        fact = `${x * q} shared into ${x} equal groups is ${q} each, because ${x} × ${q} = ${x * q}.`;
-        break;
-      }
-      case 'missing': {
-        const x = rnd(5, tier === 2 ? 99 : 50), a = rnd(5, 50);
-        prompt = `${x} + ? = ${x + a}`; answer = a;
-        fact = `${x + a} − ${x} = ${a}, so the missing number is ${a}.`;
-        break;
-      }
-      case 'frac': {
-        const d = pick([2, 3, 4, 5, 10]), a = rnd(2, 12);
-        prompt = `What is 1/${d} of ${a * d}?`; answer = a;
-        fact = `1/${d} means split into ${d} equal parts: ${a * d} ÷ ${d} = ${a}.`;
-        break;
-      }
-      default: { // word problems
-        const scale = [1, 3, 6][tier];
-        const w = pick([
-          () => { const x = rnd(5, 20 * scale), y = rnd(5, 20 * scale);
-            return [`A robot has ${x} bolts and finds ${y} more. How many bolts does it have now?`, x + y, `${x} + ${y} = ${x + y}`]; },
-          () => { const x = rnd(20, 40 * scale), y = rnd(3, x - 5);
-            return [`A rocket had ${x} fuel cells and used ${y}. How many are left?`, x - y, `${x} − ${y} = ${x - y}`]; },
-          () => { const g = rnd(2, tier ? 9 : 5), n = rnd(2, 10);
-            return [`There are ${g} boxes with ${n} batteries in each. How many batteries in total?`, g * n, `${g} × ${n} = ${g * n}`]; },
-          () => { const k = rnd(2, tier ? 9 : 5), e = rnd(2, 10);
-            return [`${k * e} gears are shared equally between ${k} bots. How many gears does each bot get?`, e, `${k * e} ÷ ${k} = ${e}`]; }
-        ])();
-        prompt = w[0]; answer = w[1]; fact = w[2] + '.';
-      }
-    }
-    return { subject: 'math', kind: 'mcq', prompt, answer: String(answer), options: numberOptions(answer), fact, limit: 20 };
-  }
-
   /* ---------------- SCIENCE (multiple choice) ---------------- */
   // q = question, a = correct answer, w = wrong answers, f = fun fact / explanation
   const science = [
@@ -193,5 +114,5 @@
     { q: 'Which pair makes the compound word "sunflower"?', a: 'sun + flower', w: ['sunf + lower', 'su + nflower', 'sunflow + er'], f: 'A compound word is two words joined together.' }
   ];
 
-  window.QB = { rnd, pick, shuffle, makeMath, science, language, puzzles, ITEM_EMOJI };
+  window.QB = { rnd, pick, shuffle, science, language, puzzles, ITEM_EMOJI };
 })();
